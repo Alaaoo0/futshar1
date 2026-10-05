@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ كاشف الانفجار اللحظي — Futures Live</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif; background: #0a0e14; color: #e6edf3; padding: 12px; min-height: 100vh; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 12px; padding: 12px; background: linear-gradient(135deg, #1a0f1f, #0a0e14); border-radius: 12px; border: 1px solid #30363d; position: relative; overflow: hidden; }
+  .header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, #f8514933, transparent 70%); animation: rotate 8s linear infinite; }
+  @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .header h1 { font-size: 17px; color: #f0b90b; margin-bottom: 4px; position: relative; z-index: 1; }
+  .header p { font-size: 11px; color: #8b949e; position: relative; z-index: 1; }
+
+  /* Status bar */
+  .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; margin-bottom: 10px; font-size: 11px; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; background: #3fb950; border-radius: 50%; margin-left: 6px; animation: pulse-dot 1.5s infinite; }
+  .live-dot.off { background: #f85149; animation: none; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 #3fb95099; } 50% { opacity: 0.6; box-shadow: 0 0 0 8px transparent; } }
+
+  /* Controls */
+  .controls { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  select, button, input { padding: 10px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font-size: 12px; font-family: inherit; flex: 1; min-width: 80px; }
+  button { cursor: pointer; font-weight: bold; transition: 0.2s; }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-start { background: linear-gradient(135deg, #238636, #3fb950); border: none; color: white; }
+  .btn-stop { background: linear-gradient(135deg, #f85149, #d29922); border: none; color: white; }
+  .btn-test { background: linear-gradient(135deg, #a371f7, #f85149); border: none; color: white; }
+  .btn-notif { background: linear-gradient(135deg, #1f6feb, #58a6ff); border: none; color: white; }
+
+  /* Stats panel */
+  .stats-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+  .stat-box { background: #161b22; padding: 10px; border-radius: 10px; text-align: center; border: 1px solid #30363d; }
+  .stat-box-label { font-size: 9px; color: #8b949e; margin-bottom: 3px; }
+  .stat-box-value { font-size: 16px; font-weight: bold; }
+  .stat-box-value.green { color: #3fb950; }
+  .stat-box-value.red { color: #f85149; }
+  .stat-box-value.blue { color: #58a6ff; }
+
+  /* Alert cards */
+  .alert-card { background: linear-gradient(135deg, #161b22, #0a0e14); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-right: 5px solid #3fb950; position: relative; overflow: hidden; animation: slideIn 0.4s ease-out; }
+  .alert-card.dump { border-right-color: #f85149; }
+  .alert-card.strong { box-shadow: 0 0 25px #3fb95044; }
+  .alert-card.dump.strong { box-shadow: 0 0 25px #f8514944; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+  .alert-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+  .alert-symbol { font-size: 17px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+  .alert-badge { font-size: 10px; padding: 4px 10px; border-radius: 6px; font-weight: bold; color: white; }
+  .alert-badge.pump { background: linear-gradient(135deg, #238636, #3fb950); }
+  .alert-badge.dump { background: linear-gradient(135deg, #f85149, #d29922); }
+  .alert-badge.strength-high { background: linear-gradient(135deg, #f85149, #f0b90b); animation: pulse-badge 1s infinite; }
+  @keyframes pulse-badge { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+  .alert-time { font-size: 10px; color: #6e7681; }
+
+  .alert-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .metric { background: #0a0e14; padding: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+  .metric-label { color: #8b949e; }
+  .metric-value { font-weight: bold; font-size: 12px; }
+  .metric-value.up { color: #3fb950; }
+  .metric-value.down { color: #f85149; }
+
+  /* Big change display */
+  .big-change { text-align: center; padding: 12px; background: #0a0e14; border-radius: 10px; margin-bottom: 10px; }
+  .big-change-value { font-size: 32px; font-weight: bold; line-height: 1; }
+  .big-change-value.up { color: #3fb950; text-shadow: 0 0 20px #3fb95066; }
+  .big-change-value.down { color: #f85149; text-shadow: 0 0 20px #f8514966; }
+  .big-change-label { font-size: 10px; color: #8b949e; margin-top: 4px; }
+
+  /* Volume bar */
+  .volume-bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .volume-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+  /* Action buttons */
+  .action-row { display: flex; gap: 6px; margin-top: 10px; }
+  .action-btn { flex: 1; padding: 10px; border-radius: 8px; border: none; color: white; font-weight: bold; font-size: 11px; cursor: pointer; }
+  .action-btn.long { background: linear-gradient(135deg, #238636, #3fb950); }
+  .action-btn.short { background: linear-gradient(135deg, #f85149, #d29922); }
+  .action-btn.chart { background: linear-gradient(135deg, #1f6feb, #58a6ff); }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 40px 20px; color: #8b949e; font-size: 13px; }
+  .empty-state .emoji { font-size: 48px; display: block; margin-bottom: 12px; animation: pulse-emoji 2s infinite; }
+  @keyframes pulse-emoji { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+  /* Loading spinner */
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast notifications */
+  .toast { position: fixed; top: 10px; left: 10px; right: 10px; padding: 16px; border-radius: 12px; color: white; font-weight: bold; z-index: 99999; box-shadow: 0 8px 32px rgba(0,0,0,0.6); animation: slideDown 0.3s ease-out; border: 2px solid white; }
+  .toast.pump { background: linear-gradient(135deg, #238636, #3fb950); }
+  .toast.dump { background: linear-gradient(135deg, #f85149, #d29922); }
+  @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .toast-close { float: left; cursor: pointer; background: rgba(255,255,255,0.3); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+  /* Flash effect for strong signals */
+  .flash { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 99998; animation: flashEffect 0.5s ease-out; }
+  .flash.pump { background: radial-gradient(circle, transparent 30%, #3fb95044 100%); }
+  .flash.dump { background: radial-gradient(circle, transparent 30%, #f8514944 100%); }
+  @keyframes flashEffect { from { opacity: 1; } to { opacity: 0; } }
+
+  footer { text-align: center; font-size: 10px; color: #6e7681; margin-top: 20px; padding-top: 12px; border-top: 1px solid #21262d; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>⚡ كاشف الانفجار اللحظي</h1>
+    <p>Binance Futures • Top 20 • تحديث كل 5 ثواني • حساسية 2%+</p>
+  </div>
+
+  <div class="status-bar">
+    <div>
+      <span class="live-dot off" id="liveDot"></span>
+      <span id="statusText" style="margin-right: 6px;">متوقف</span>
+    </div>
+    <div>
+      <span id="scanCount">0 فحص</span>
+      <span style="margin: 0 6px; color: #30363d;">|</span>
+      <span id="lastScan" style="color: #6e7681;">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-start" id="startBtn" onclick="startLiveScanner()">▶️ بدء المراقبة اللحظية</button>
+    <button class="btn-stop" id="stopBtn" onclick="stopLiveScanner()" disabled>⏹️ إيقاف</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn-notif" onclick="enableNotifications()">🔔 تفعيل الإشعارات</button>
+    <button class="btn-test" onclick="testAlert()">🔊 تجربة التنبيه</button>
+  </div>
+
+  <div class="stats-panel">
+    <div class="stat-box">
+      <div class="stat-box-label">🚀 Pump اليوم</div>
+      <div class="stat-box-value green" id="pumpCount">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">💥 Dump اليوم</div>
+      <div class="stat-box-value red" id="dumpCount">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">⚡ قوية (3%+)</div>
+      <div class="stat-box-value blue" id="strongCount">0</div>
+    </div>
+  </div>
+
+  <div id="alertsContainer">
+    <div class="empty-state">
+      <span class="emoji">⚡</span>
+      اضغط "بدء المراقبة اللحظية" لبدء الكشف
+      <div style="margin-top: 10px; font-size: 11px; color: #6e7681;">
+        النظام يراقب Top 20 عملة على Binance Futures<br>
+        ويكشف الانفجارات 2%+ خلال 5 ثواني
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ⚡ كاشف الانفجار اللحظي V1 — للاستخدام التعليمي • ليست نصيحة استثمارية
+  </footer>
+
+<script>
+/* ==========================================================
+   🔧 الإعدادات
+   ========================================================== */
+const CONFIG = {
+  scanInterval: 5000,           // كل 5 ثواني
+  minChangePct: 2.0,            // حساسية 2%+
+  strongChangePct: 3.0,         // قوية 3%+
+  topCount: 20,                 // Top 20 عملة
+  windowSeconds: 30,            // نافذة المقارنة (30 ثانية)
+  maxAlerts: 30,                // حد أقصى للبطاقات
+  alertCooldown: 60000          // منع تكرار نفس العملة لدقيقة
+};
+
+/* ==========================================================
+   🔧 المتغيرات العامة
+   ========================================================== */
+let isRunning = false;
+let scanTimer = null;
+let scanCounter = 0;
+let alerts = [];
+let priceHistory = {};         // { symbol: [{ price, time }, ...] }
+let lastAlertTime = {};        // { symbol: timestamp }
+let stats = { pump: 0, dump: 0, strong: 0 };
+let symbolsCache = [];         // Top 20 symbols
+
+/* ==========================================================
+   🎵 الأصوات
+   ========================================================== */
+function playPumpSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    // نغمات صاعدة سريعة (Pump)
+    [523, 659, 784, 1047, 1319].forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+      }, i * 100);
+    });
+  } catch(e) {}
+}
+
+function playDumpSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    // نغمات هابطة سريعة (Dump)
+    [1047, 784, 659, 523, 392].forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+      }, i * 100);
+    });
+  } catch(e) {}
+}
+
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+/* ==========================================================
+   🔔 الإشعارات
+   ========================================================== */
+async function enableNotifications() {
+  if (!('Notification' in window)) {
+    alert('⚠️ المتصفح لا يدعم الإشعارات');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    alert('✅ تم تفعيل الإشعارات!');
+    new Notification('🔔 إشعارات مفعّلة', { body: 'ستصلك تنبيهات فورية للانفجارات' });
+  } else {
+    alert('❌ تم رفض الإذن');
+  }
+}
+
+function sendBrowserNotification(alert) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const isPump = alert.type === 'pump';
+    const emoji = isPump ? '🚀' : '💥';
+    const label = isPump ? 'انفجار صاعد' : 'انهيار';
+    new Notification(`${emoji} ${label} — ${alert.symbol}`, {
+      body: `${alert.changePct > 0 ? '+' : ''}${alert.changePct.toFixed(2)}% خلال ${alert.windowSec} ثانية\nالسعر: $${alert.price}`,
+      tag: alert.symbol + '_' + Date.now(),
+      requireInteraction: true,
+      vibrate: isPump ? [200, 100, 200] : [400, 200, 400, 200, 400]
+    });
+  } catch(e) {}
+}
+
+/* ==========================================================
+   📊 جلب البيانات
+   ========================================================== */
+async function fetchTopSymbols() {
+  try {
+    const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+
+    return data
+      .filter(t => t.symbol.endsWith('USDT'))
+      .filter(t => !t.symbol.includes('UP') && !t.symbol.includes('DOWN'))
+      .filter(t => !t.symbol.includes('BULL') && !t.symbol.includes('BEAR'))
+      .filter(t => parseFloat(t.quoteVolume) > 10000000)
+      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, CONFIG.topCount)
+      .map(t => t.symbol);
+  } catch (e) {
+    console.error('فشل جلب Top Symbols:', e);
+    return [];
+  }
+}
+
+async function fetchPrices(symbols) {
+  try {
+    // استخدام endpoint للحصول على كل الأسعار دفعة واحدة
+    const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+
+    const prices = {};
+    data.forEach(item => {
+      if (symbols.includes(item.symbol)) {
+        prices[item.symbol] = parseFloat(item.price);
+      }
+    });
+    return prices;
+  } catch (e) {
+    console.error('فشل جلب الأسعار:', e);
+    return null;
+  }
+}
+
+async function fetchVolumeData(symbols) {
+  try {
+    const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+
+    const vol = {};
+    data.forEach(item => {
+      if (symbols.includes(item.symbol)) {
+        vol[item.symbol] = {
+          volume: parseFloat(item.quoteVolume),
+          count: parseInt(item.count),
+          high: parseFloat(item.highPrice),
+          low: parseFloat(item.lowPrice)
+        };
+      }
+    });
+    return vol;
+  } catch (e) { return null; }
+}
+
+/* ==========================================================
+   ⚡ محرك الكشف
+   ========================================================== */
+function detectSpikes(prices, volumeData) {
+  const now = Date.now();
+  const detections = [];
+
+  for (const symbol in prices) {
+    const price = prices[symbol];
+    if (!priceHistory[symbol]) priceHistory[symbol] = [];
+
+    // أضف السعر الحالي
+    priceHistory[symbol].push({ price, time: now });
+
+    // احذف ما هو أقدم من النافذة
+    const cutoff = now - (CONFIG.windowSeconds * 1000);
+    priceHistory[symbol] = priceHistory[symbol].filter(p => p.time >= cutoff);
+
+    // نحتاج على الأقل نقطتين
+    if (priceHistory[symbol].length < 2) continue;
+
+    const oldest = priceHistory[symbol][0];
+    const changePct = ((price - oldest.price) / oldest.price) * 100;
+    const absChange = Math.abs(changePct);
+
+    // تحقق من الحساسية
+    if (absChange < CONFIG.minChangePct) continue;
+
+    // منع التكرار
+    if (lastAlertTime[symbol] && (now - lastAlertTime[symbol]) < CONFIG.alertCooldown) continue;
+
+    // تحديد النوع
+    const type = changePct > 0 ? 'pump' : 'dump';
+
+    // احسب سرعة التغيير (لكل ثانية)
+    const timeDiffSec = (now - oldest.time) / 1000;
+    const speed = absChange / Math.max(timeDiffSec, 1);
+
+    // قوة الإشارة
+    let strength = 'normal';
+    if (absChange >= CONFIG.strongChangePct * 1.5) strength = 'extreme';
+    else if (absChange >= CONFIG.strongChangePct) strength = 'strong';
+
+    // بيانات الحجم
+    const vd = volumeData[symbol] || {};
+
+    detections.push({
+      symbol,
+      price,
+      oldPrice: oldest.price,
+      changePct,
+      absChange,
+      type,
+      speed,
+      strength,
+      windowSec: timeDiffSec.toFixed(1),
+      volume24h: vd.volume || 0,
+      high24h: vd.high || price,
+      low24h: vd.low || price,
+      time: now
+    });
+
+    lastAlertTime[symbol] = now;
+  }
+
+  return detections;
+}
+
+/* ==========================================================
+   🎯 التنبيه
+   ========================================================== */
+function triggerAlert(alert) {
+  const isPump = alert.type === 'pump';
+
+  // صوت
+  if (isPump) playPumpSound();
+  else playDumpSound();
+
+  // اهتزاز
+  vibrate(isPump ? [200, 100, 200] : [400, 200, 400, 200, 400]);
+
+  // إشعار متصفح
+  sendBrowserNotification(alert);
+
+  // Toast على الشاشة
+  showToast(alert);
+
+  // Flash للشاشة (فقط للإشارات القوية)
+  if (alert.strength === 'strong' || alert.strength === 'extreme') {
+    showFlash(alert.type);
+  }
+
+  // إضافة للقائمة
+  alerts.unshift(alert);
+  if (alerts.length > CONFIG.maxAlerts) alerts = alerts.slice(0, CONFIG.maxAlerts);
+
+  // تحديث الإحصائيات
+  if (isPump) stats.pump++;
+  else stats.dump++;
+  if (alert.strength === 'strong' || alert.strength === 'extreme') stats.strong++;
+
+  renderAlerts();
+  updateStats();
+}
+
+function showToast(alert) {
+  const isPump = alert.type === 'pump';
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + alert.type;
+  toast.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <div style="font-size:15px;">${isPump ? '🚀' : '💥'} ${alert.symbol}</div>
+      <div class="toast-close" onclick="this.parentElement.parentElement.remove()">×</div>
+    </div>
+    <div style="font-size:20px; text-align:center; margin:6px 0;">${alert.changePct > 0 ? '+' : ''}${alert.changePct.toFixed(2)}%</div>
+    <div style="font-size:11px; opacity:0.9; text-align:center;">خلال ${alert.windowSec} ثانية • $${alert.price.toFixed(6)}</div>
+  `;
+  document.body.appendChild(toast);
+
+  // إزالة تلقائية
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, isPump ? 8000 : 12000);
+}
+
+function showFlash(type) {
+  const flash = document.createElement('div');
+  flash.className = 'flash ' + type;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 500);
+}
+
+/* ==========================================================
+   🎨 عرض البطاقات
+   ========================================================== */
+function renderAlerts() {
+  const container = document.getElementById('alertsContainer');
+  if (alerts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="emoji">🔍</span>
+        النظام يراقب السوق...
+        <div style="margin-top: 10px; font-size: 11px; color: #6e7681;">
+          في انتظار انفجارات 2%+ خلال ${CONFIG.windowSeconds} ثانية
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = alerts.map(alert => renderAlertCard(alert)).join('');
+}
+
+function renderAlertCard(alert) {
+  const isPump = alert.type === 'pump';
+  const cls = isPump ? '' : 'dump';
+  const strongCls = (alert.strength === 'strong' || alert.strength === 'extreme') ? 'strong' : '';
+  const badgeCls = isPump ? 'pump' : 'dump';
+  const label = isPump ? '🚀 PUMP' : '💥 DUMP';
+  const timeAgo = getTimeAgo(alert.time);
+
+  const strengthBadge = alert.strength === 'extreme'
+    ? '<span class="alert-badge strength-high">🔥 EXPLOSIVE</span>'
+    : alert.strength === 'strong'
+    ? '<span class="alert-badge strength-high">⚡ قوية</span>'
+    : '';
+
+  const volumeColor = isPump ? '#3fb950' : '#f85149';
+
+  return `
+    <div class="alert-card ${cls} ${strongCls}">
+      <div class="alert-header">
+        <div class="alert-symbol">
+          ${alert.symbol.replace('USDT','')}
+          <span class="alert-badge ${badgeCls}">${label}</span>
+          ${strengthBadge}
+        </div>
+        <div class="alert-time">${timeAgo}</div>
+      </div>
+
+      <div class="big-change">
+        <div class="big-change-value ${isPump ? 'up' : 'down'}">
+          ${alert.changePct > 0 ? '+' : ''}${alert.changePct.toFixed(2)}%
+        </div>
+        <div class="big-change-label">
+          خلال ${alert.windowSec} ثانية • سرعة ${alert.speed.toFixed(3)}%/ثانية
+        </div>
+      </div>
+
+      <div class="alert-metrics">
+        <div class="metric">
+          <span class="metric-label">💰 السعر الحالي</span>
+          <span class="metric-value">$${formatPrice(alert.price)}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">📊 السعر السابق</span>
+          <span class="metric-value">$${formatPrice(alert.oldPrice)}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">📈 أعلى 24س</span>
+          <span class="metric-value up">$${formatPrice(alert.high24h)}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">📉 أدنى 24س</span>
+          <span class="metric-value down">$${formatPrice(alert.low24h)}</span>
+        </div>
+      </div>
+
+      <div style="font-size:10px; color:#8b949e; margin-bottom:4px;">
+        💵 حجم 24س: $${formatVolume(alert.volume24h)}
+      </div>
+
+      <div class="action-row">
+        <button class="action-btn chart" onclick="openChart('${alert.symbol}')">📊 الشارت</button>
+        ${isPump
+          ? `<button class="action-btn long" onclick="openFutures('${alert.symbol}', 'LONG')">🟢 Long</button>`
+          : `<button class="action-btn short" onclick="openFutures('${alert.symbol}', 'SHORT')">🔴 Short</button>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+/* ==========================================================
+   🔧 Helpers
+   ========================================================== */
+function formatPrice(n) {
+  if (n >= 1000) return n.toFixed(2);
+  if (n >= 1) return n.toFixed(4);
+  if (n >= 0.01) return n.toFixed(5);
+  return n.toFixed(8);
+}
+
+function formatVolume(n) {
+  if (n >= 1000000000) return (n/1000000000).toFixed(2) + 'B';
+  if (n >= 1000000) return (n/1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(2) + 'K';
+  return n.toFixed(2);
+}
+
+function getTimeAgo(timestamp) {
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 60) return `منذ ${diff} ث`;
+  if (diff < 3600) return `منذ ${Math.floor(diff/60)} د`;
+  return `منذ ${Math.floor(diff/3600)} س`;
+}
+
+function updateStats() {
+  document.getElementById('pumpCount').textContent = stats.pump;
+  document.getElementById('dumpCount').textContent = stats.dump;
+  document.getElementById('strongCount').textContent = stats.strong;
+}
+
+function openChart(symbol) {
+  window.open(`https://www.binance.com/en/futures/${symbol}`, '_blank');
+}
+
+function openFutures(symbol, side) {
+  window.open(`https://www.binance.com/en/futures/${symbol}`, '_blank');
+}
+
+/* ==========================================================
+   🔄 حلقة المسح
+   ========================================================== */
+async function runScan() {
+  scanCounter++;
+  document.getElementById('scanCount').textContent = scanCounter + ' فحص';
+  document.getElementById('lastScan').textContent = new Date().toLocaleTimeString('ar-EG');
+
+  try {
+    // 1. جلب Top Symbols (كل 20 فحص = دقيقة واحدة)
+    if (symbolsCache.length === 0 || scanCounter % 20 === 1) {
+      symbolsCache = await fetchTopSymbols();
+      console.log('🔄 تحديث قائمة العملات:', symbolsCache.length);
+    }
+
+    if (symbolsCache.length === 0) return;
+
+    // 2. جلب الأسعار الحالية
+    const prices = await fetchPrices(symbolsCache);
+    if (!prices) return;
+
+    // 3. جلب بيانات الحجم
+    const volumeData = await fetchVolumeData(symbolsCache);
+
+    // 4. كشف الانفجارات
+    const detections = detectSpikes(prices, volumeData);
+
+    // 5. إطلاق التنبيهات
+    detections.forEach(d => triggerAlert(d));
+
+  } catch (e) {
+    console.error('خطأ في المسح:', e);
+  }
+}
+
+/* ==========================================================
+   ▶️ بدء / إيقاف
+   ========================================================== */
+async function startLiveScanner() {
+  if (isRunning) return;
+
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('liveDot').classList.remove('off');
+  document.getElementById('statusText').textContent = '🟢 يعمل';
+  document.getElementById('statusText').style.color = '#3fb950';
+
+  // مسح القائمة
+  alerts = [];
+  priceHistory = {};
+  lastAlertTime = {};
+  stats = { pump: 0, dump: 0, strong: 0 };
+  updateStats();
+  renderAlerts();
+
+  isRunning = true;
+
+  // جلب أولي
+  symbolsCache = await fetchTopSymbols();
+  console.log('📋 العملات المراقبة:', symbolsCache);
+
+  // بدء الحلقة
+  await runScan();
+  scanTimer = setInterval(runScan, CONFIG.scanInterval);
+}
+
+function stopLiveScanner() {
+  if (!isRunning) return;
+  isRunning = false;
+  clearInterval(scanTimer);
+  scanTimer = null;
+
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('liveDot').classList.add('off');
+  document.getElementById('statusText').textContent = '⏸️ متوقف';
+  document.getElementById('statusText').style.color = '#8b949e';
+}
+
+/* ==========================================================
+   🧪 اختبار التنبيه
+   ========================================================== */
+function testAlert() {
+  const fakeAlert = {
+    symbol: 'BTCUSDT',
+    price: 68000.50,
+    oldPrice: 66000.00,
+    changePct: 3.03,
+    absChange: 3.03,
+    type: 'pump',
+    speed: 0.6,
+    strength: 'strong',
+    windowSec: '5.0',
+    volume24h: 5000000000,
+    high24h: 68500,
+    low24h: 65000,
+    time: Date.now()
+  };
+  triggerAlert(fakeAlert);
+
+  setTimeout(() => {
+    const dumpAlert = { ...fakeAlert, type: 'dump', changePct: -2.5, symbol: 'ETHUSDT', strength: 'normal' };
+    triggerAlert(dumpAlert);
+  }, 3000);
+}
+
+/* ==========================================================
+   🔄 التهيئة
+   ========================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  updateStats();
+  renderAlerts();
+
+  // تنبيه قبل الإغلاق
+  window.addEventListener('beforeunload', (e) => {
+    if (isRunning) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // طلب إذن الإشعارات تلقائياً
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      if (confirm('🔔 هل تريد تفعيل الإشعارات الفورية للانفجارات؟')) {
+        Notification.requestPermission();
+      }
+    }, 2000);
+  }
+});
+</script>
+</body>
+</html>
